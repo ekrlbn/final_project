@@ -1,8 +1,8 @@
 # Core Libraries
-fastapi  # For building the API (if we choose a web API for the chatbot)
-uvicorn[standard]  # ASGI server for FastAPI
+fastapi
+uvicorn
 requests  # For making HTTP requests to external APIs
-pydantic  # For data validation and settings management
+pydantic
 pydantic-settings # For settings management (used in config.py)
 
 # Data Handling & Analysis
@@ -33,3 +33,5 @@ python-dotenv  # For managing environment variables
 # Placeholder for specific API client libraries if needed later, e.g.:
 # yfinance
 # bloomberg-sdk (if available and applicable)
+
+httpx
