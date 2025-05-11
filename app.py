@@ -25,4 +25,10 @@ demo = gr.ChatInterface(
     type="messages"
 )
 
-demo.launch()
+auth_list = [
+    ("Pete", "Pete"),
+    ("Dawood", "Dawood")
+]
+
+
+demo.launch(auth=auth_list)
