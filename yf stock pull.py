@@ -2,7 +2,7 @@ import google.generativeai as genai
 import yfinance as yf
 from datetime import datetime, timedelta
 import re
-gemini_key = "AIzaSyAltCIW6kMK55HEhwJeO7_2xBO8hx05cCM"
+gemini_key = 
 genai.configure(api_key=gemini_key)
 model = genai.GenerativeModel("gemini-1.5-flash")
 detector_chat = model.start_chat()
