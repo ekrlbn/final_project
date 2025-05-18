@@ -2,7 +2,7 @@ import gradio as gr
 import os
 import shutil
 import time
-from langchain_google_genai import ChatGoogleGenerativeAI
+from google import genai
 from dotenv import load_dotenv
 
 # Import functions from document.py
@@ -20,7 +20,8 @@ os.makedirs(DOCS_PATH, exist_ok=True)
 os.makedirs(CHROMA_PATH, exist_ok=True)
 
 # Initialize the language model
-llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash")
+client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
+chat = client.chats.create(model="gemini-2.0-flash")
 
 # Default collection name
 DEFAULT_COLLECTION = "pdf_collection"
@@ -46,7 +47,7 @@ def process_query_with_rag(query, history):
                 context_parts.append(f"Document: {source}\n{doc}")
         
         context = "\n\n".join(context_parts)
-        print(f"Context found: {context}")  # Debugging line
+        # print(f"Context found: {context}")  # Debugging line
         
         # Step 3: If we have context, use it with the LLM to generate response
         if context:
@@ -57,13 +58,13 @@ Context:
 
 Query: {query}
 
-Answer:"""
-            response = llm.invoke(full_prompt)
-            return response.text()
+    Answer:"""
+            response = chat.send_message(full_prompt)
+            return response.text
         else:
             # No context found, just use the LLM directly
-            response = llm.invoke(f"Query: {query}\nAnswer:")
-            return response.text() + "\n\n(Note: No relevant documents were found in the database to answer this query.)"
+            response = chat.send_message(f"Query: {query}\nAnswer:")
+            return response.text + "\n\n(Note: No relevant documents were found in the database to answer this query.)"
             
     except Exception as e:
         return f"Error processing query: {str(e)}"

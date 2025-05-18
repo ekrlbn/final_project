@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from pypdf import PdfReader
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 import chromadb
 from chromadb import EmbeddingFunction
@@ -114,7 +114,7 @@ def add_document_to_collection(
                 "source": os.path.basename(pdf_name),
                 "chunk": i,
                 "last_modified": os.path.getmtime(pdf_path),
-                "added": time.time()
+                "added": time.time(),
             },
             ids=[f"doc_{os.path.basename(pdf_name)}_{i}"]
         )
@@ -151,7 +151,7 @@ def query_collection(
     results = collection.query(
         query_texts=[query],
         n_results=n_results,
-        include=["documents", "metadatas", "distances"]
+        include=["documents", "metadatas", "distances"],
     )
     
     return results

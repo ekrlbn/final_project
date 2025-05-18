@@ -26,6 +26,7 @@ fsspec==2025.3.2
 google-ai-generativelanguage==0.6.18
 google-api-core==2.24.2
 google-auth==2.39.0
+google-genai==1.15.0
 googleapis-common-protos==1.70.0
 gradio==5.28.0
 gradio_client==1.10.0
@@ -49,9 +50,7 @@ jsonpointer==3.0.0
 jsonschema==4.23.0
 jsonschema-specifications==2025.4.1
 kubernetes==32.0.1
-langchain==0.3.24
-langchain-core==0.3.56
-langchain-google-genai==2.1.4
+langchain-core==0.3.60
 langchain-text-splitters==0.3.8
 langsmith==0.3.39
 markdown-it-py==3.0.0
