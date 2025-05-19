@@ -2,6 +2,7 @@ import os
 import time
 from typing import List, Optional
 
+import chromadb.errors
 from pypdf import PdfReader
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -66,7 +67,8 @@ def add_document_to_collection(
     collection_name: str = "pdf_collection", 
     chunk_size: int = 1000, 
     chunk_overlap: int = 200,
-    embedding_func: embedding_functions.EmbeddingFunction = None
+    embedding_func: embedding_functions.EmbeddingFunction = None,
+    test: bool = False
 ):
     """
     Process a PDF file and add its chunks to a ChromaDB collection.
@@ -98,6 +100,12 @@ def add_document_to_collection(
     # Initialize client
     client = chromadb.PersistentClient(path=CHROMA_PATH)
     
+    if test:
+        try:
+            client.delete_collection(name=collection_name)
+        except chromadb.errors.NotFoundError:
+            print(f"Collection {collection_name} does not exist. Creating a new one.")
+
     # Create new collection with the embedding function
     collection = client.get_or_create_collection(
         name=collection_name,
