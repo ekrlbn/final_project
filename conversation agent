@@ -1,0 +1,162 @@
+import google.generativeai as genai
+gemini_key = "AIzaSyDurMxPAZHS-y59IWcdBVTAK6zggxCXxvI"
+genai.configure(api_key=gemini_key)
+model = genai.GenerativeModel("gemini-1.5-flash")
+chat = model.start_chat(history=[])
+
+# Initial system message
+system_prompt1 = """
+{
+  "name_surname": {
+    "type": "string",
+    "description": "The full name of the user.",
+    "required": true
+  },
+  "age": {
+    "type": "integer",
+    "description": "The age of the user.",
+    "required": true
+  },
+  "email": {
+    "type": "string",
+    "description": "The email address of the user.",
+    "required": true
+  },
+  "gender": {
+    "type": "string",
+    "description": "The gender of the user.",
+    "options": ["Male", "Female", "Other"],
+    "required": true
+  },
+  "martial_status": {
+    "type": "string",
+    "description": "The marital status of the user.",
+    "options": ["Single", "Married", "Divorced", "Widowed"],
+    "required" : true
+  },
+  "number_of_children": {
+    "type": "integer",
+    "description": "The number of children the user has.",
+    "required" : true
+  },
+  "education_level": {
+    "type": "string",
+    "description": "The highest level of education the user has completed.",
+    "options": [
+      "High School",
+      "Associate's Degree",
+      "Bachelor's Degree",
+      "Master's Degree",
+      "Doctorate",
+      "Other"
+    ]
+    "required" : true
+  },
+  "occupation": {
+    "type": "string",
+    "description": "The occupation of the user.",
+    "required": true
+  },
+  "anual_working_hours": {
+    "type": "integer",
+    "description": "The number of hours the user works in a week.",
+    "required": true
+  },
+  "monthly_income": {
+    "type": "integer",
+    "description": "The monthly income of the user.",
+    "required": true
+  },
+  "monthly_expenses": {
+    "type": "integer",
+    "description": "The monthly expenses of the user.",
+    "required": true
+  },
+  "debt": {
+    "type": "integer",
+    "description": "The amount of debt the user has.",
+    "required": true
+  },
+  "assets": {
+    "type": "string",
+    "description": "All kind of assets the user has.",
+    "required": true,
+    "example": "House worth $300,000, car worth $20,000, savings of $50,000, $10,000 in stocks."
+  },
+  "location": {
+    "type": "string",
+    "description": "The location of the user.",
+    "required" : true
+  },
+  "chronic_diseases": {
+    "type": "string",
+    "description": "List of chronic diseases the user has.",
+    "example": "Diabetes, hypertension, asthma.",
+    "required": true
+  },
+  "lifestyle_habits": {
+    "type": "string",
+    "description": "List of lifestyle habits of the user.",
+    "example": "Non-smoker, moderate alcohol consumption, regular exercise."
+    "required" : true
+  },
+  "family_health_history": {
+    "type": "string",
+    "description": "Family health history of the user.",
+    "example": "Father had heart disease, mother had breast cancer.",
+    "required": true
+  },
+  "target_retirement_age": {
+    "type": "integer",
+    "description": "The age at which the user plans to retire.",
+    "required": true
+  },
+  "target_retirement_income": {
+    "type": "integer",
+    "description": "The income the user wants to have at retirement.",
+    "required": true
+  }
+}
+Ask in this order
+what is your full name 
+what is 
+
+this is structure of a user. Start as null for all of them. 
+You are responsible for asking relative questions and getting answers about user's fields. 
+Ask them in a conversational way. Ask and fill required: true fields certainly. 
+Fill them in order and ask follow up questions dont move to the next question until the answers is satisfactory expect clarity in the answers from the user
+You may ask and fill required:false fields if it is appropriate in conversation or already given by user.
+
+Do NOT ask anything other than these fields.
+Do NOT add any fields other than given ones.
+Do NOT miss any attributes make sure you ask all of them and ask them in order.
+Do NOT change name of fields. Do NOT modify the structure.
+Do NOT give the names of fields to user like "i need this info for your education_level".
+
+
+
+ONLY WHEN user says "Export profile as JSON", return ONLY the filled json structure.
+After that do not ask further questions 
+"""
+
+print("hello welcome to the retirement planing")
+exported = False
+while exported==False:
+    user_input = input("You: ")
+    if user_input.lower() in ["exit", "quit"]:
+        break
+    if exported:
+        print("Bot: Thank you, your profile has been saved. Have a great day!")
+        break
+    chat.send_message(system_prompt1)
+    response = chat.send_message(user_input)
+    bot_reply = response.text
+    print("Bot:", bot_reply)
+    if "```json" in bot_reply:
+        exported = True
+while True:
+    user_input = input("You: ")
+    if user_input.lower() in ["exit", "quit"]:
+        break
+    response = chat.send_message(user_input)
+    print("Bot:", response.text)
