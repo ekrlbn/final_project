@@ -200,36 +200,9 @@ while exported==False:
         print("Bot: Thank you, your profile has been saved. Have a great day!")
         break
     print("Bot:", bot_reply)
-print("whaaaaaat")
-chat = model.start_chat(history=[])
-chat.send_message(system_prompt2)
-chat.send_message(user_json)
-print(user_json)
-#response = chat.send_message("return financial assests only")
-#financial_assets = response.text
-agents = {
-    "portfolio": PortfolioAssistant(api_key=gemini_key, portfolio={"AAPL": 10, "TSLA": 5, "MSFT": 7}),
-    "retirement": RetirementAgent(api_key=gemini_key,user_info=user_json)
-}
-# Router
-def route_to_agent(user_input):
-    text = user_input.lower()
-    if any(word in text for word in ["stock", "portfolio","price", "value"]):
-        return "portfolio"
-    if any(k in user_input.lower() for k in ["retire", "pension", "saving"]):
-        return "retirement"
-    if any(k in user_input.lower() for k in ["health", "sleep", "diet", "exercise"]):
-        return "health"
-    if any(k in user_input.lower() for k in ["life expectancy", "longevity", "lifespan"]):
-        return "longevity"
-    return None
-
 while True:
     user_input = input("You: ")
     if user_input.lower() in ["exit", "quit"]:
-        break  
-    agent_key = route_to_agent(user_input)
-    if agent_key:
-        print(f"{agent_key.capitalize()} Agent:", agents[agent_key].handle_query(user_input))
-    else:
-        print("Bot: Sorry, no agent could handle that request.")
+        break
+    chat.send_message(system_prompt2)
+    response = chat.send_message(user_input)
