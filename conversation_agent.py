@@ -1,6 +1,6 @@
+import os
 import google.generativeai as genai
-gemini_key = "AIzaSyCSJPXO1B9g0Ex_bOKE8D0jLiJyFB5C75w"
-genai.configure(api_key=gemini_key)
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 model = genai.GenerativeModel("gemini-2.0-flash-lite")
 chat = model.start_chat(history=[])
 
