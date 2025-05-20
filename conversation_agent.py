@@ -1,10 +1,10 @@
-import google.generativeai as genai
-from portfolio_assistant import PortfolioAssistant
-from RetirementAgent import RetirementAgent
+from google import genai
+#from portfolio_assistant import PortfolioAssistant
+#from RetirementAgent import RetirementAgent
 gemini_key = "AIzaSyCSJPXO1B9g0Ex_bOKE8D0jLiJyFB5C75w"
-genai.configure(api_key=gemini_key)
-model = genai.GenerativeModel("gemini-2.0-flash-lite")
-chat = model.start_chat(history=[])
+client = genai.Client(api_key=gemini_key)
+chat = client.chats.create(model="gemini-2.0-flash")
+
 system_prompt1 = """
 {
   "name_surname": {
