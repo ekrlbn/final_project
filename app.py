@@ -87,6 +87,7 @@ def process_query(query, history):
         # Step 3: If we have context, use it with the LLM to generate response
     if context:
         full_prompt = f"""Based on the following context, please answer the query.
+Also, provide the sources of the information you used to answer the query at the end of your answer. 
         
 Context:
 {context}
