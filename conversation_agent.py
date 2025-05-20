@@ -1,12 +1,16 @@
 import os
 import google.generativeai as genai
+import global_session
+
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 model = genai.GenerativeModel("gemini-2.0-flash-lite")
 chat = model.start_chat(history=[])
 
 def message_chat(message):
-      
-  system_prompt1 = """
+    # Access the current_user data
+  current_user = global_session.current_user.to_dict()
+    
+  user_structure = """
   {
     "name_surname": {
       "type": "string",
@@ -118,27 +122,23 @@ def message_chat(message):
       "required": true
     }
   }
-  Ask in this order
-  what is your full name 
-  what is 
-
-  this is structure of a user. Start as null for all of them. 
-  You are responsible for asking relative questions and getting answers about user's fields. 
-  Ask them in a conversational way. Ask and fill required: true fields certainly. 
+  """
+  system_prompt1 = f"""
+  {user_structure} this is structure of a user. And {current_user} is the user logged in right now.
+  You are responsible for asking relative questions and getting answers about user's fields. First check if the user has already filled the fields.
+  If the user has already filled the fields, you can skip asking them and say "which operation you want to perform next?".
+  If the user has not filled the fields, ask them in a conversational way.
+  Ask and fill required: true fields certainly.
   Fill them in order and ask follow up questions dont move to the next question until the answers is satisfactory expect clarity in the answers from the user
-  You may ask and fill required:false fields if it is appropriate in conversation or already given by user.
-
+ 
   Do NOT ask anything other than these fields.
   Do NOT add any fields other than given ones.
   Do NOT miss any attributes make sure you ask all of them and ask them in order.
   Do NOT change name of fields. Do NOT modify the structure.
   Do NOT give the names of fields to user like "i need this info for your education_level".
-
-
-
-  ONLY WHEN user says "Export profile as JSON", return ONLY the filled json structure.
-  After that do not ask further questions 
+ 
   """
+
   system_prompt2="""
   once you recive this prompt ignore all previous instructions and start a new conversation 
   after this you will recive a json structure of the user
