@@ -184,8 +184,8 @@ user_json=""
 
 
 
-gemini_key = "AIzaSyCSJPXO1B9g0Ex_bOKE8D0jLiJyFB5C75w"
-client = genai.Client(api_key=gemini_key)
+#gemini_key = "AIzaSyCSJPXO1B9g0Ex_bOKE8D0jLiJyFB5C75w"
+#client = genai.Client(api_key=gemini_key)
 gemini_config_structured = {
     "temperature": 0.5,
     "top_p": 0.95,
@@ -201,7 +201,10 @@ gemini_config = {
     "system_instruction": system_prompt1,
     
 }
-chat = client.chats.create(model="gemini-2.0-flash",config=gemini_config)
+agent = Agent.Agent("Retirement Planing Assistant",system_prompt1)
+chat_session = agent.create_chat()
+
+#chat = client.chats.create(model="gemini-2.0-flash",config=gemini_config)
 
 user_json=""
 
@@ -212,7 +215,8 @@ while exported==False:
     if user_input.lower() in ["exit", "quit"]:
         break
     #chat.send_message(system_prompt1)
-    response = chat.send_message(user_input)
+    response = chat_session.send_message(user_input)
+    #response = chat.send_message(user_input)
     bot_reply = response.text
     
     if "```json" in bot_reply:
@@ -228,5 +232,6 @@ while True:
     user_input = input("You: ")
     if user_input.lower() in ["exit", "quit"]:
         break
-    chat.send_message(system_prompt2)
-    response = chat.send_message(user_input)
+    #chat.send_message(system_prompt2)
+    response = agent.send_message(agent.chat,user_input)
+    #response = chat.send_message(user_input)
