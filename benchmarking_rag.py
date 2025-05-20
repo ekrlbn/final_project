@@ -118,8 +118,6 @@ def run_benchmark(
                 distances = results["distances"][0]
                 distance_max = max(distances) if distances else 0
                 distance_avr = sum(distances) / len(distances) if distances else 0
-                chunk_size = 1000
-                chunk_overlap = 200
                 # Evaluate the chunks using the AI model
                 rating = evaluate_chunks(test_queries[idx], chunks)
                 # Create a QueryResult object
@@ -158,11 +156,12 @@ if __name__ == "__main__":
     # Run the benchmark
     
     models = [
-        # embedding_functions.GoogleGenerativeAiEmbeddingFunction(
-        # api_key=os.environ.get("GOOGLE_API_KEY"),
-        # model_name="models/text-embedding-004"),
+        embedding_functions.SentenceTransformerEmbeddingFunction("all-mpnet-base-v2"),
+        embedding_functions.SentenceTransformerEmbeddingFunction("multi-qa-mpnet-base-dot-v1"),
+        embedding_functions.GoogleGenerativeAiEmbeddingFunction(
+            api_key=os.environ.get("GOOGLE_API_KEY"),
+            model_name="models/text-embedding-004"),
         embedding_functions.SentenceTransformerEmbeddingFunction("all-MiniLM-L6-v2"),
-        # embedding_functions.HuggingFaceEmbeddingFunction(api_key=os.environ.get("HUGGING_SPACE_TOKEN"), model_name="sentence-transformers/all-MiniLM-L6-v2"),
     ]
 
     chunk_sizes = [1000]
