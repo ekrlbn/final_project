@@ -2,7 +2,131 @@ from google import genai
 #from portfolio_assistant import PortfolioAssistant
 #from RetirementAgent import RetirementAgent
 import Agent
+from google.genai import types
+from google.genai.types import FunctionDeclaration, Tool
+import denemeAgent
 
+
+verification_prompt = """You will receive a input in the given json format. Make sure none of the fields are null or empty. Also make sure the data is relevant to the user:
+```json
+{
+  "name_surname": {
+    "type": "string",
+    "description": "The full name of the user.",
+    "required": true
+  },
+  "age": {
+    "type": "integer",
+    "description": "The age of the user.",
+    "required": true
+  },
+  "email": {
+    "type": "string",
+    "description": "The email address of the user.",
+    "required": true
+  },
+  "gender": {
+    "type": "string",
+    "description": "The gender of the user.",
+    "options": ["Male", "Female", "Other"],
+    "required": true
+  },
+  "martial_status": {
+    "type": "string",
+    "description": "The marital status of the user.",
+    "options": ["Single", "Married", "Divorced", "Widowed"],
+    "required" : true
+  },
+  "number_of_children": {
+    "type": "integer",
+    "description": "The number of children the user has.",
+    "required" : true
+  },
+  "education_level": {
+    "type": "string",
+    "description": "The highest level of education the user has completed.",
+    "options": [
+      "High School",
+      "Associate's Degree",
+      "Bachelor's Degree",
+      "Master's Degree",
+      "Doctorate",
+      "Other"
+    ],
+    "required" : true
+  },
+  "occupation": {
+    "type": "string",
+    "description": "The occupation of the user.",
+    "required": true
+  },
+  "anual_working_hours": {
+    "type": "integer",
+    "description": "The number of hours the user works in a week.",
+    "required": true
+  },
+  "monthly_income": {
+    "type": "integer",
+    "description": "The monthly income of the user.",
+    "required": true
+  },
+  "monthly_expenses": {
+    "type": "integer",
+    "description": "The monthly expenses of the user.",
+    "required": true
+  },
+  "debt": {
+    "type": "integer",
+    "description": "The amount of debt the user has.",
+    "required": true
+  },
+  "assets": {
+    "type": "string",
+    "description": "All kind of assets the user has.",
+    "required": true,
+    "example": "House worth $300,000, car worth $20,000, savings of $50,000, $10,000 in stocks."
+  },
+  "location": {
+    "type": "string",
+    "description": "The location of the user.",
+    "required" : true
+  },
+  "chronic_diseases": {
+    "type": "string",
+    "description": "List of chronic diseases the user has.",
+    "example": "Diabetes, hypertension, asthma.",
+    "required": true
+  },
+  "lifestyle_habits": {
+    "type": "string",
+    "description": "List of lifestyle habits of the user.",
+    "example": "Non-smoker, moderate alcohol consumption, regular exercise.",
+    "required" : true
+  },
+  "family_health_history": {
+    "type": "string",
+    "description": "Family health history of the user.",
+    "example": "Father had heart disease, mother had breast cancer.",
+    "required": true
+  },
+  "target_retirement_age": {
+    "type": "integer",
+    "description": "The age at which the user plans to retire.",
+    "required": true
+  },
+  "target_retirement_income": {
+    "type": "integer",
+    "description": "The income the user wants to have at retirement.",
+    "required": true
+  }
+}
+```
+
+if the user data is not in the expected format, return "User data is not in the expected format (dictionary)."
+if the user data has missing fields, return (field_name) is missing.
+if all of the fields are present, return "User data is verified. And print all of the data"
+
+"""
 
 
 system_prompt1 = """
@@ -49,7 +173,7 @@ system_prompt1 = """
       "Master's Degree",
       "Doctorate",
       "Other"
-    ]
+    ],
     "required" : true
   },
   "occupation": {
@@ -201,12 +325,17 @@ gemini_config = {
     "system_instruction": system_prompt1,
     
 }
-agent = Agent.Agent("Retirement Planing Assistant",system_prompt1)
+
+
+
+agent = Agent.Agent("Conversational Agent",system_prompt1)
 chat_session = agent.create_chat()
 
 #chat = client.chats.create(model="gemini-2.0-flash",config=gemini_config)
 
 user_json=""
+
+verification_agent = denemeAgent.verification("Verification Agent",verification_prompt)
 
 print("hello welcome to the retirement planing")
 exported = False
@@ -218,7 +347,9 @@ while exported==False:
     response = chat_session.send_message(user_input)
     #response = chat.send_message(user_input)
     bot_reply = response.text
+
     
+    #print(verification_agent.verify_user_data(user_data=response,prompt=verification_prompt))
     if "```json" in bot_reply:
         user_json = bot_reply
         print("Bot: Your profile has been saved. You can now ask for a report.")  
@@ -233,5 +364,5 @@ while True:
     if user_input.lower() in ["exit", "quit"]:
         break
     #chat.send_message(system_prompt2)
-    response = agent.send_message(agent.chat,user_input)
+    response = chat_session.send_message(user_input)
     #response = chat.send_message(user_input)
