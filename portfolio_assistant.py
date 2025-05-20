@@ -4,12 +4,12 @@ from datetime import datetime, timedelta
 import re
 
 class PortfolioAssistant:
-    def __init__(self, api_key, portfolio):
+    def __init__(self, portfolio):
         self.portfolio = portfolio
         self.portfolio_summary = "\n".join(f"{ticker}: {shares} shares" for ticker, shares in portfolio.items())
 
         # Configure Gemini API
-        genai.configure(api_key=api_key)
+        genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
         self.model = genai.GenerativeModel("gemini-1.5-flash")
         self.detector_chat = self.model.start_chat()
         self.context_chat = self.model.start_chat()
