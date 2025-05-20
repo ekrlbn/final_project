@@ -16,7 +16,7 @@ load_dotenv()
 # Define path variable at the beginning
 DOCS_PATH = os.path.join(os.getcwd(), "docs")
 CHROMA_PATH = os.path.join("chroma_db")
-EMBEDDING_FUNC: EmbeddingFunction = embedding_functions.SentenceTransformerEmbeddingFunction()
+EMBEDDING_FUNC: EmbeddingFunction = embedding_functions.SentenceTransformerEmbeddingFunction("multi-qa-MiniLM-L6-cos-v1")
 # embedding_functions.GoogleGenerativeAiEmbeddingFunction(
 #     api_key=os.environ.get("GOOGLE_API_KEY"),
 #     model_name="models/embedding-001"

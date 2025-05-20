@@ -4,6 +4,8 @@ import shutil
 import time
 from google import genai
 from dotenv import load_dotenv
+from conversation_agent import message_chat
+from typing import Optional
 
 # Import functions from document.py
 from document import (
@@ -12,6 +14,8 @@ from document import (
     DOCS_PATH,
     CHROMA_PATH
 )
+
+from rating_agent import evaluate_chunks
 
 load_dotenv()
 
@@ -26,8 +30,15 @@ chat = client.chats.create(model="gemini-2.0-flash")
 # Default collection name
 DEFAULT_COLLECTION = "pdf_collection"
 
-def process_query_with_rag(query, history):
-    """Process query using RAG pipeline and LLM"""
+def get_chunks(query:str) -> Optional[str]:
+    """Get relevant chunks from the vector database using the query
+    Parameters:
+        query (str): The query to search for in the vector database
+    Returns:
+        str: The relevant chunks of text from the vector database 
+        if the rating from the agent is high enough, otherwise None
+    """
+
     try:
         # Step 1: Query the vector database to get relevant context
         results = query_collection(
@@ -35,8 +46,21 @@ def process_query_with_rag(query, history):
             collection_name=DEFAULT_COLLECTION,
             n_results=3
         )
+
+        # Step 2: Check if the distances are good enough
+        # to pass the results to the rating agent
+        is_valid = False
+        for distance in results["distances"][0]:
+            if distance < 1:
+                is_valid = True
+                break
+        if not is_valid:
+            print("No valid results found from the vector database.")
+            return None
+
+        print(f"\n\nNumber of chunks{len(results["documents"][0])}\n\n")  # Debugging line
         
-        # Step 2: Extract context from results
+        # Step 3: Extract context from results
         context_parts = []
         if results and "documents" in results and results["documents"] and len(results["documents"][0]) > 0:
             for i, (doc, metadata) in enumerate(zip(
@@ -45,29 +69,36 @@ def process_query_with_rag(query, history):
             )):
                 source = metadata.get('source', 'unknown')
                 context_parts.append(f"Document: {source}\n{doc}")
+
+        # Step 4: Evaluate the context using the rating agent
+        input_tokens, rating = evaluate_chunks(query, context_parts)
+        if rating.rating < 5:
+            print(f"Rating is too low: {rating.rating}. No context will be used.")
+            return None
         
-        context = "\n\n".join(context_parts)
+        return "\n\n".join(context_parts)
         # print(f"Context found: {context}")  # Debugging line
-        
+    except Exception as e:
+        return None
+
+def process_query(query, history):
+    """Process query using RAG pipeline and LLM"""
+    context = get_chunks(query)
         # Step 3: If we have context, use it with the LLM to generate response
-        if context:
-            full_prompt = f"""Based on the following context, please answer the query.
-            
+    if context:
+        full_prompt = f"""Based on the following context, please answer the query.
+        
 Context:
 {context}
 
 Query: {query}
 
-    Answer:"""
-            response = chat.send_message(full_prompt)
-            return response.text
-        else:
-            # No context found, just use the LLM directly
-            response = chat.send_message(f"Query: {query}\nAnswer:")
-            return response.text + "\n\n(Note: No relevant documents were found in the database to answer this query.)"
+Answer:"""
+        return message_chat(full_prompt)
+    else:
+        # No context found, just use the LLM directly
+        return message_chat(query)
             
-    except Exception as e:
-        return f"Error processing query: {str(e)}"
 
 def upload_and_process_file(file):
     """Upload and process a file for the RAG pipeline"""
@@ -87,7 +118,7 @@ def upload_and_process_file(file):
             pdf_name=file_name,
             collection_name=DEFAULT_COLLECTION,
             chunk_size=1000,
-            chunk_overlap=100
+            chunk_overlap=0
         )
         processing_time = time.time() - start_time
         
@@ -124,7 +155,7 @@ with gr.Blocks(title="Document RAG Assistant") as demo:
         
         # Main chat interface
         chatbot = gr.ChatInterface(
-            fn=process_query_with_rag,
+            fn=process_query,
             chatbot=gr.Chatbot(height=600, type="messages"),
             textbox=gr.Textbox(placeholder="Ask a question about your documents...", container=False),
             title="Retirement Planning Assistant",

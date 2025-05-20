@@ -1,5 +1,4 @@
 import os
-import time
 
 from chromadb import EmbeddingFunction
 from chromadb.utils import embedding_functions
@@ -8,19 +7,12 @@ from document import query_collection, add_document_to_collection
 from dotenv import load_dotenv
 from typing import List, Dict, Any
 from tqdm import tqdm
-from google import genai
-from google.genai.errors import ClientError
 import pandas as pd
+from rating_agent import evaluate_chunks
 
 load_dotenv()
 
 EMBEDDING_FUNC: EmbeddingFunction = embedding_functions.SentenceTransformerEmbeddingFunction()
-
-MODEL = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
-
-class Rating(BaseModel):
-    """Model to hold the rating and explanation."""
-    rating: int
 
 class QueryResult(BaseModel):
     """Model to hold the query result."""
@@ -31,9 +23,9 @@ class QueryResult(BaseModel):
     chunk_count: int
     distance_max: float
     distance_avr: float
+    input_tokens: int
     rating: int
 
-# Define embedding function to use (matches the one in document.py)
 
 # Test queries to benchmark
 test_queries = []
@@ -42,43 +34,6 @@ with open("test_queries.txt", "r") as f:
 
 print(test_queries)
 
-def evaluate_chunks(query: str, chunks: List[str]) -> Rating:
-    """Uses an AI model to evaluate the relevance of chunks to the query."""
-    
-    # Prepare the evaluation prompt
-    main_prompt = f"""
-    Query: {query}
-    
-    Retrieved chunks:
-    {chunks}
-    
-    On a scale from 1-10, rate how relevant these chunks are to the query.
-    Provide your rating and a brief explanation in this format:
-    
-    Rating: [1-10]
-    Explanation: [Your explanation]
-    """
-    
-    try: 
-        response = MODEL.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=main_prompt,
-            config={
-                "response_mime_type": "application/json",
-                "response_schema": Rating
-            }
-        )
-    except ClientError as e:
-        time.sleep(60)
-        return evaluate_chunks(query, chunks) 
-
-
-    print(f"\nTokens used: {response.usage_metadata.candidates_token_count}\n")
-    if response.parsed is None or not response.parsed.rating or not response.parsed.rating in range(1, 11):
-        print("\nInvalid response from AI model. Please check the model and the prompt.\n")
-        return Rating(rating=0)
-
-    return response.parsed
 
 def run_benchmark(
         embedding_func: EmbeddingFunction = EMBEDDING_FUNC,
@@ -119,7 +74,7 @@ def run_benchmark(
                 distance_max = max(distances) if distances else 0
                 distance_avr = sum(distances) / len(distances) if distances else 0
                 # Evaluate the chunks using the AI model
-                rating = evaluate_chunks(test_queries[idx], chunks)
+                input_tokens, rating = evaluate_chunks(test_queries[idx], chunks)
                 # Create a QueryResult object
                 query_result = QueryResult(
                     query=idx,
@@ -129,7 +84,8 @@ def run_benchmark(
                     distance_max=distance_max,
                     distance_avr=distance_avr,
                     rating=rating.rating,
-                    embedding_function=model_name
+                    embedding_function=model_name,
+                    input_tokens=input_tokens
                 )
                 benchmark_results.append(query_result)
             else:
@@ -141,7 +97,8 @@ def run_benchmark(
                     distance_max=0,
                     distance_avr=0,
                     rating=0,
-                    embedding_function=model_name
+                    embedding_function=model_name,
+                    input_tokens=input_tokens
                 ))
 
     # Save results to CSV
@@ -156,16 +113,15 @@ if __name__ == "__main__":
     # Run the benchmark
     
     models = [
-        embedding_functions.SentenceTransformerEmbeddingFunction("all-mpnet-base-v2"),
-        embedding_functions.SentenceTransformerEmbeddingFunction("multi-qa-mpnet-base-dot-v1"),
+        embedding_functions.SentenceTransformerEmbeddingFunction("multi-qa-MiniLM-L6-cos-v1"),
         embedding_functions.GoogleGenerativeAiEmbeddingFunction(
             api_key=os.environ.get("GOOGLE_API_KEY"),
             model_name="models/text-embedding-004"),
         embedding_functions.SentenceTransformerEmbeddingFunction("all-MiniLM-L6-v2"),
     ]
 
-    chunk_sizes = [1000]
-    chunk_overlaps = [200]
+    chunk_sizes = [500, 1000, 1500]
+    chunk_overlaps = [0, 100, 200]
 
     for model in models:
         for chunk_size in chunk_sizes:
@@ -176,5 +132,5 @@ if __name__ == "__main__":
                     embedding_func=model,
                     chunk_size=chunk_size,
                     chunk_overlap=chunk_overlap,
-                    n_results_arr=[3, 5, 10]
+                    n_results_arr=[3, 5]
                 )
