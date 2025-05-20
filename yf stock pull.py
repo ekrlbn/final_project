@@ -1,12 +1,15 @@
-import google.generativeai as genai
+from google import genai
 import yfinance as yf
 from datetime import datetime, timedelta
 import re
-gemini_key = 
-genai.configure(api_key=gemini_key)
-model = genai.GenerativeModel("gemini-1.5-flash")
-detector_chat = model.start_chat()
-context_chat = model.start_chat()
+import os
+gemini_key = os.getenv("GOOGLE_API_KEY")
+client = genai.Client(api_key=gemini_key)
+
+
+
+detector_chat = client.chats.create(model="gemini-1.5-flash")
+context_chat = client.chats.create(model="gemini-1.5-flash")
 portfolio = {
     "AAPL": 10,
     "TSLA": 5,
