@@ -25,9 +25,6 @@ load_dotenv()
 os.makedirs(DOCS_PATH, exist_ok=True)
 os.makedirs(CHROMA_PATH, exist_ok=True)
 
-# Initialize the language model
-client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
-chat = client.chats.create(model="gemini-2.0-flash")
 
 # Default collection name
 DEFAULT_COLLECTION = "pdf_collection"
