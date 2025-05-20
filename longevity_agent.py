@@ -286,18 +286,4 @@ def process_user_string(user_info_str):
     pdf_path = agent.save_report_to_pdf(report)
     return report, pdf_path
 
-iface = gr.Interface(
-    fn=process_user_string,
-    inputs=[
-        gr.Textbox(label="User Profile (Raw Text Format)", lines=20, placeholder='Paste user info here (e.g., name:..., age:...)')
-    ],
-    outputs=[
-        gr.Textbox(label="Generated Longevity Report", lines=25),
-        gr.File(label="Download PDF Report")
-    ],
-    title="Longevity Report Generator",
-    description="Paste a user profile as plain text. The system generates a longevity report based on fixed disease and survival datasets."
-)
 
-if _name_ == "_main_":
-    iface.launch()
