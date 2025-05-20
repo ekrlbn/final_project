@@ -174,7 +174,8 @@ def message_chat(message):
   If the user has already filled the fields, you can skip asking them and say "which operation you want to perform next?".
   If the user has not filled the fields, ask them in a conversational way.
   Ask and fill required: true fields certainly.
-  Fill them in order and ask follow up questions dont move to the next question until the answers is satisfactory expect clarity in the answers from the user
+  Fill them in order and ask follow up questions dont move to the next question until 
+  the answers is satisfactory expect clarity in the answers from the user
  
   Do NOT ask anything other than these fields.
   Do NOT add any fields other than given ones.
