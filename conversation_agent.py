@@ -1,9 +1,9 @@
 from google import genai
 #from portfolio_assistant import PortfolioAssistant
 #from RetirementAgent import RetirementAgent
-gemini_key = "AIzaSyCSJPXO1B9g0Ex_bOKE8D0jLiJyFB5C75w"
-client = genai.Client(api_key=gemini_key)
-chat = client.chats.create(model="gemini-2.0-flash")
+import Agent
+
+
 
 system_prompt1 = """
 {
@@ -181,13 +181,37 @@ you only print the above json structure and nothing else
 
 user_json=""
 
+
+
+
+gemini_key = "AIzaSyCSJPXO1B9g0Ex_bOKE8D0jLiJyFB5C75w"
+client = genai.Client(api_key=gemini_key)
+gemini_config_structured = {
+    "temperature": 0.5,
+    "top_p": 0.95,
+    "top_k": 40,
+    "response_mime_type": "application/json",
+    "system_instruction": system_prompt1,
+    
+}
+gemini_config = {
+    "temperature": 0.5,
+    "top_p": 0.95,
+    "top_k": 40,
+    "system_instruction": system_prompt1,
+    
+}
+chat = client.chats.create(model="gemini-2.0-flash",config=gemini_config)
+
+user_json=""
+
 print("hello welcome to the retirement planing")
 exported = False
 while exported==False:
     user_input = input("You: ")
     if user_input.lower() in ["exit", "quit"]:
         break
-    chat.send_message(system_prompt1)
+    #chat.send_message(system_prompt1)
     response = chat.send_message(user_input)
     bot_reply = response.text
     
