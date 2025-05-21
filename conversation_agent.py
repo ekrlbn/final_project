@@ -3,30 +3,30 @@ import google.generativeai as genai
 import global_session
 from portfolio_assistant import PortfolioAssistant # Import PortfolioAssistant
 
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-model = genai.GenerativeModel("gemini-2.0-flash-lite")
-# Consider managing chat history more carefully, perhaps re-initializing for new sessions or users.
-# For now, using a single global chat object.
-chat = model.start_chat(history=[])
+
+
+
 
 def message_chat(message):
+    
     if not global_session.current_user:
         return "Please log in to use the assistant."
 
     # --- Portfolio Assistant Integration ---
     # Simple intent detection for portfolio-related queries
     # You might want to make this more sophisticated, e.g., using another LLM call or NLP library.
-    portfolio_keywords = [
-        "stock", "portfolio", "shares", "price of", "value of my", "ticker",
-        "investments", "asset", "holding"
-    ]
-    is_portfolio_query = any(keyword in message.lower() for keyword in portfolio_keywords)
+    #portfolio_keywords = [
+    #    "stock", "portfolio", "shares", "price of", "value of my", "ticker",
+    #    "investments", "asset", "holding"
+    #]
+    #is_portfolio_query = any(keyword in message.lower() for keyword in portfolio_keywords)
+    #is_portfolio_query = True
 
-    if is_portfolio_query:
+    #if is_portfolio_query:
         # Retrieve portfolio data from the current user.
         # Assumes global_session.current_user has a 'portfolio' attribute that is a dict.
         # e.g., user_object.portfolio = {"AAPL": 10, "MSFT": 5}
-        user_portfolio_data = getattr(global_session.current_user, 'portfolio', {})
+    #    user_portfolio_data = getattr(global_session.current_user, 'portfolio', {})
 
         if not isinstance(user_portfolio_data, dict):
             # Fallback or error if portfolio data is not in the expected format
@@ -42,7 +42,8 @@ def message_chat(message):
 
         try:
             portfolio_agent = PortfolioAssistant(portfolio=user_portfolio_data)
-            portfolio_response = portfolio_agent.ask(message)
+            #portfolio_response = portfolio_agent.ask(message)
+            portfolio_response = portfolio_agent.ask_generate(message)
             return portfolio_response
         except Exception as e:
             print(f"Error during PortfolioAssistant interaction: {e}")
@@ -54,7 +55,6 @@ def message_chat(message):
     # It will reset on each call. Consider moving this state to global_session
     # or checking profile completeness directly from global_session.current_user.
     current_user_dict = global_session.current_user.to_dict()
-
     user_structure = """
   {
     "name_surname": {
@@ -181,8 +181,20 @@ def message_chat(message):
   Do NOT miss any attributes make sure you ask all of them and ask them in order.
   Do NOT change name of fields. Do NOT modify the structure.
   Do NOT give the names of fields to user like "i need this info for your education_level".
+  You have portfolio assistant tool to get stock prices. After user profile is filled you can use this tool to get stock prices.
  
   """
+
+
+
+
+
+
+    genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+    model = genai.GenerativeModel("gemini-2.0-flash-lite",
+                              system_instruction=system_prompt1)
+
+    chat = model.start_chat(history=[])
 
     system_prompt2="""
   once you recive this prompt ignore all previous instructions and start a new conversation 
@@ -198,56 +210,12 @@ def message_chat(message):
   - health report
 
   """
-    system_prompt3 = """json
-  {
-    name_surname Onat Keser,
-    age 28,
-    email il@wewe.com,
-    gender Male,
-    martial_status Single,
-    number_of_children 0,
-    education_level High School,
-    occupation plumber,
-    anual_working_hours 40,
-    monthly_income 2000,
-    monthly_expenses 1000,
-    debt 10000,
-    assets 20 shares of Apple stock and $5000 in savings,
-    location Utah,
-    chronic_diseases null,
-    lifestyle_habits Non-smoker, no alcohol, weekly basketball,
-    family_health_history Grandfather has Alzheimer's, mother has bone cancer,
-    target_retirement_age 60,
-    target_retirement_income 2000
-  }
-  this is a json structure of the user.
-  when you are told print
-  you only print the above json structure and nothing else
-  """
 
-    # This 'exported' variable's scope is local to this function call.
-    # This means its state isn't preserved across multiple calls to message_chat
-    # for the same user session if the profile isn't fully completed in one go.
-    # A more robust approach would be to check if the necessary fields in
-    # global_session.current_user are filled.
-    # exported = False # This will reset on every call.
-
-    # Example: Check if profile seems complete based on a few key fields
-    # This is a more robust way to check than a local 'exported' flag.
     profile_seems_complete = all(
         current_user_dict.get(key) for key in ["name_surname", "email", "age"] # Add other essential fields
     )
-
-    if not profile_seems_complete: # If profile is not complete, go through profile filling
-        # Only send system_prompt1 if it's the beginning of the profile conversation
-        # This check is basic; you might need more sophisticated history tracking.
-        # A better way: manage a 'profile_filling_mode' state in global_session.
-        
-        # Simplified history check for sending system_prompt1
-        # This assumes that if system_prompt1 was the last thing the user part of history,
-        # we are continuing a profile filling conversation.
-        # A more robust state management (e.g., in global_session) is recommended.
-        
+    
+    if not profile_seems_complete: 
         send_initial_profile_prompt = True
         if chat.history:
             # Check if the last model message or user message implies we are in profile filling.
@@ -270,6 +238,10 @@ def message_chat(message):
             chat.send_message(system_prompt1)
 
         response = chat.send_message(message)
+
+   
+       
+        
         bot_reply = response.text
     
         if "```json" in bot_reply:

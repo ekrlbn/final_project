@@ -3,72 +3,74 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import re
 import os
-# import json # Not strictly needed for this version of FunctionResponse handling
+
+
+
 
 class PortfolioAssistant:
+    '''This class is used to answer stock price questions and portfolio related questions'''
     def __init__(self, portfolio: dict):
         self.portfolio = portfolio
         self.portfolio_summary = "\\n".join(f"- {ticker}: {shares} shares" for ticker, shares in portfolio.items())
 
         genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-        # Define tool implementations mapping
+        def fetch_price(ticker: str, days_ago: int) -> str:
+            '''returns the closing price for a stock on a specific date. If date is not specified, it uses the current date.'''
+            try:
+                # For days_ago calculation, the LLM will use the actual current date.
+                base_date = datetime.today()
+                date_to_fetch = base_date - timedelta(days=days_ago)
+            
+                 # Adjust to the previous weekday if it's a weekend
+                while date_to_fetch.weekday() >= 5: 
+                    date_to_fetch -= timedelta(days=1)
+            
+                start_date_str = date_to_fetch.strftime('%Y-%m-%d')
+                end_date_str = (date_to_fetch + timedelta(days=1)).strftime('%Y-%m-%d')
+
+                stock = yf.Ticker(ticker)
+                data = stock.history(start=start_date_str, end=end_date_str, auto_adjust=True, prepost=False)
+
+                if not data.empty and 'Close' in data.columns:
+                    price = data["Close"].iloc[0]
+                    # Ensure the date reported is the actual date from yfinance data
+                    actual_date_str = data.index[0].strftime('%Y-%m-%d')
+                    return f"The closing price for {ticker} on {actual_date_str} was ${price:.2f}."
+                else:
+                    # Fallback for days_ago=0 if specific date fails (e.g. market closed, very recent)
+                    if days_ago == 0:
+                        # Try to get the most recent info available
+                        current_data = stock.history(period="2d", auto_adjust=True, prepost=False) # get last 2 days to ensure one is trading
+                    if not current_data.empty and 'Close' in current_data.columns:
+                        price = current_data["Close"].iloc[-1]
+                        actual_date_str = current_data.index[-1].strftime('%Y-%m-%d')
+                        return f"The most recent closing price for {ticker} on {actual_date_str} is ${price:.2f}."
+                return f"No price data found for {ticker} for the target date around {date_to_fetch.strftime('%Y-%m-%d')}."
+            except Exception as e:
+                return f"Error fetching price for {ticker}: {str(e)}"
+        # The following line caused the TypeError and is removed:
+        # functions_to_llm[extract_tickers_from_text,fetch_price]
+        
+        # Create a list of the function objects to pass to the model
+        defined_tools = [fetch_price]
+
+        # Populate self.tool_functions for the 'ask' method to execute the calls.
+        # The keys (function names) must match what the LLM will send in the function_call.
         self.tool_functions = {
-            "fetch_price": self.fetch_price,
-            "extract_tickers_from_text": self.extract_tickers_from_text,
+            "fetch_price": fetch_price,
         }
-
-        # Define tools schema for the LLM
-        self.tools_schema = [
-            {
-                "name": "fetch_price",
-                "description": "Fetches the historical closing stock price for a given ticker symbol and a specific number of days ago. Use for any questions about stock prices.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "ticker": {
-                            "type": "string",
-                            "description": "The stock ticker symbol (e.g., 'AAPL' for Apple)."
-                        },
-                        "days_ago": {
-                            "type": "integer",
-                            "description": "Number of days in the past to fetch the price for (e.g., 0 for today, 1 for yesterday, 7 for a week ago). The current date is 21 Mayıs 2025."
-                        }
-                    },
-                    "required": ["ticker", "days_ago"]
-                }
-            },
-            {
-                "name": "extract_tickers_from_text",
-                "description": "Extracts potential stock ticker symbols (e.g., AAPL, MSFT) found directly in a piece of text. Returns a list of unique ticker-like strings. For company names not in ticker format, you (the main assistant) should try to map them to tickers using your general knowledge before calling fetch_price.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "text_to_scan": {
-                            "type": "string",
-                            "description": "The text to scan for ticker symbols."
-                        }
-                    },
-                    "required": ["text_to_scan"]
-                }
-            }
-        ]
-
-        self.model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash", # Or your preferred model
-            tools=self.tools_schema
-        )
-
+    
         initial_context_prompt = f"""
 You are a specialized financial assistant. Your sole purpose is to help users with their stock portfolio.
-The current date is 21 Mayıs 2025.
+The current date is {datetime.today().strftime('%d %B %Y')}.
 Your user's current portfolio consists of:
 {self.portfolio_summary}
 
 Your capabilities and responsibilities:
 1.  **Answer Stock Price Questions**:
     *   If the user asks for a stock price (current or past), you MUST use the `fetch_price` tool.
-    *   You need to determine the correct 'ticker' and 'days_ago' from the user's query to use the `fetch_price` tool. For 'days_ago', calculate based on the current date 21 Mayıs 2025.
+    *   You need to determine the correct 'ticker' and 'days_ago' from the user's query to use the `fetch_price` tool. For 'days_ago', calculate based on the current date {datetime.today().strftime('%d %B %Y')}.
     *   If the user mentions company names (e.g., Apple), you should try to recall the ticker (e.g., AAPL) from your general knowledge. If you need to find ticker-like patterns in a block of text to confirm or extract multiple tickers, use the `extract_tickers_from_text` tool, then use `fetch_price` for each identified ticker.
 2.  **Answer Ownership Questions**:
     *   If the user asks what stocks they own or how many shares, refer to the portfolio summary provided above and state it clearly.
@@ -89,64 +91,33 @@ Your capabilities and responsibilities:
 
 You will interact by receiving a user prompt. You can either respond directly or call one of your tools. If you call a tool, you will receive its output and then you can formulate your final response.
 """
-        self.chat = self.model.start_chat(
-            history=[
-                {'role': 'user', 'parts': [{'text': initial_context_prompt}]},
-                {'role': 'model', 'parts': [{'text': "Understood. I am ready to assist with your portfolio. How can I help you today?"}]}
-            ]
+        self.model = genai.GenerativeModel(
+            system_instruction=initial_context_prompt,
+            generation_config=genai.GenerationConfig(
+                temperature=0.5,
+                top_p=0.95,
+                top_k=40,
+            ),
+            model_name="gemini-2.0-flash", # 
+            tools=defined_tools  # tool list
         )
+        
 
-    def fetch_price(self, ticker: str, days_ago: int) -> str:
+    def ask_generate(self, user_prompt: str) -> str:
         try:
-            # Current date is fixed for consistent testing if needed, but using live datetime.today()
-            # For days_ago calculation, the LLM uses the fixed current date from the prompt.
-            base_date = datetime(2025, 5, 21) # As specified in prompt context for LLM
-            date_to_fetch = base_date - timedelta(days=days_ago)
-            
-            # Adjust to the previous weekday if it's a weekend
-            while date_to_fetch.weekday() >= 5: # 5 for Saturday, 6 for Sunday
-                date_to_fetch -= timedelta(days=1)
-            
-            start_date_str = date_to_fetch.strftime('%Y-%m-%d')
-            end_date_str = (date_to_fetch + timedelta(days=1)).strftime('%Y-%m-%d')
+            # Initial call to the model
+            # The 'tools' are already configured on self.model
+            current_content_history = [{'role': 'user', 'parts': [{'text': user_prompt}]}]
+            response = self.model.generate_content(current_content_history)
 
-            stock = yf.Ticker(ticker)
-            data = stock.history(start=start_date_str, end=end_date_str, auto_adjust=True, prepost=False)
-
-            if not data.empty and 'Close' in data.columns:
-                price = data["Close"].iloc[0]
-                # Ensure the date reported is the actual date from yfinance data
-                actual_date_str = data.index[0].strftime('%Y-%m-%d')
-                return f"The closing price for {ticker} on {actual_date_str} was ${price:.2f}."
-            else:
-                # Fallback for days_ago=0 if specific date fails (e.g. market closed, very recent)
-                if days_ago == 0:
-                    # Try to get the most recent info available
-                    current_data = stock.history(period="2d", auto_adjust=True, prepost=False) # get last 2 days to ensure one is trading
-                    if not current_data.empty and 'Close' in current_data.columns:
-                        price = current_data["Close"].iloc[-1]
-                        actual_date_str = current_data.index[-1].strftime('%Y-%m-%d')
-                        return f"The most recent closing price for {ticker} on {actual_date_str} is ${price:.2f}."
-                return f"No price data found for {ticker} for the target date around {date_to_fetch.strftime('%Y-%m-%d')}."
-        except Exception as e:
-            return f"Error fetching price for {ticker}: {str(e)}"
-
-    def extract_tickers_from_text(self, text_to_scan: str) -> list[str]:
-        # Regex to find patterns like AAPL, GOOG, BRK.A, MSFT.
-        tickers = re.findall(r'\\b[A-Z]{1,6}(?:\\.[A-Z])?\\b', text_to_scan.upper())
-        unique_tickers = sorted(list(set(tickers)))
-
-        if not unique_tickers and any(keyword in text_to_scan.lower() for keyword in ["my stock", "my portfolio", "all my shares", "everything i own", "all of them"]):
-            return list(self.portfolio.keys())
-        return unique_tickers
-
-    def ask(self, user_prompt: str) -> str:
-        try:
-            response = self.chat.send_message(user_prompt)
             while True:
                 candidate = response.candidates[0]
                 if not candidate.content.parts:
                     return "I received an empty response. Please try again."
+
+                # Append model's response (which might contain a function call) to history
+                # candidate.content is an SDK-provided Content object, which is fine to append directly.
+                current_content_history.append(candidate.content)
 
                 part = candidate.content.parts[0]
                 if hasattr(part, 'function_call') and part.function_call:
@@ -159,37 +130,33 @@ You will interact by receiving a user prompt. You can either respond directly or
                         try:
                             function_response_content = function_to_call(**args)
                         except Exception as e:
-                            # Provide a more structured error to the LLM
                             function_response_content = f"Error executing tool {function_name}: {str(e)}"
                         
-                        api_response_part = genai.types.Part(
-                            function_response=genai.types.FunctionResponse(
-                                name=function_name,
-                                response={'result': function_response_content}
-                            )
-                        )
-                        response = self.chat.send_message(parts=[api_response_part])
+                        # Construct the function response part as a dictionary
+                        tool_response_part_dict = {
+                            'function_response': {
+                                'name': function_name,
+                                'response': {'result': function_response_content}
+                            }
+                        }
+                        
+                        # Append the function response to history with role "tool"
+                        current_content_history.append({'role': 'tool', 'parts': [tool_response_part_dict]})
+                        
+                        # Call generate_content again with the updated history
+                        response = self.model.generate_content(current_content_history)
+                        print(current_content_history)
                     else:
-                        # This case should ideally not be reached if the model only calls defined tools
                         error_message = f"Error: The model tried to call an unknown function: {function_name}."
-                        api_response_part = genai.types.Part(
-                            function_response=genai.types.FunctionResponse(
-                                name=function_name,
-                                response={'error': error_message} # Send error back
-                            )
-                        )
-                        # It might be better to not send this back or handle differently,
-                        # as the model shouldn't call unknown functions.
-                        # For now, let's assume the model behaves. If not, this part needs review.
-                        # Or, just return an error message to the user.
-                        return error_message 
+                        return error_message
                 else:
                     if hasattr(part, 'text') and part.text:
                         return part.text.strip()
                     else:
                         return "I'm sorry, I couldn't generate a text response for that."
+            
         except Exception as e:
-            print(f"Error in PortfolioAssistant.ask: {type(e).__name__} - {e}")
+            print(f"Error in PortfolioAssistant.ask_generate: {type(e).__name__} - {e}")
             return "I encountered an unexpected error while processing your request. Please try again."
 
 # Example Usage (for testing, not part of the class):

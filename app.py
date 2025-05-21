@@ -8,6 +8,8 @@ from conversation_agent import message_chat
 from typing import Optional
 from user_info import create_profile_interface
 from authentication import signup, login
+import portfolio_assistant
+import global_session
 
 # Import functions from document.py
 from document import (
@@ -136,6 +138,35 @@ def list_uploaded_documents():
     except Exception as e:
         return f"Error listing documents: {str(e)}"
 
+# Handler function for the Portfolio Assistant ChatInterface
+def handle_portfolio_query(message: str, history: list):
+    """
+    Handles queries for the Portfolio Assistant.
+    Retrieves the current user's portfolio, initializes PortfolioAssistant,
+    and gets a response.
+    """
+    if not global_session.current_user:
+        return "Error: No user is currently logged in. Please log in to use the Portfolio Assistant."
+
+    # Assuming current_user object has a 'portfolio' attribute which is a dict
+    user_portfolio_data = getattr(global_session.current_user, 'portfolio', {})
+
+    if not isinstance(user_portfolio_data, dict):
+        # Fallback or log an error if portfolio data isn't a dict
+        user_portfolio_data = {}
+        # Potentially return an error to the user if portfolio data is critical and misconfigured
+        # return "Error: User portfolio data is not correctly configured."
+
+    try:
+        assistant = portfolio_assistant.PortfolioAssistant(portfolio=user_portfolio_data)
+        response = assistant.ask_generate(message)
+        return response
+    except Exception as e:
+        # Log the full error for debugging purposes
+        print(f"Error in handle_portfolio_query: {type(e).__name__} - {str(e)}")
+        # Provide a user-friendly error message
+        return "Sorry, I encountered an issue with the Portfolio Assistant. Please try again later."
+
 with gr.Blocks(title="Retirement Planning Assistant") as demo:
     # Create state to track authentication
     auth_state = gr.State(False)
@@ -156,21 +187,37 @@ with gr.Blocks(title="Retirement Planning Assistant") as demo:
             )
             
         with gr.Column():
-            gr.Markdown("# Retirement Planning Assistant")
-            gr.Markdown("I will help you plan your retirement.")
-            
-            # Main chat interface
-            chatbot = gr.ChatInterface(
-                fn=process_query,
-                chatbot=gr.Chatbot(height=600, type="messages"),
-                textbox=gr.Textbox(placeholder="Ask a question about your documents...", container=False),
-                title="Retirement Planning Assistant",
-                examples=[
-                    "What are the main topics covered in the uploaded documents?", 
-                    "Can you summarize the key points from the documents?"
-                ],
-                type="messages",
-            )
+            with gr.Tabs() as main_tabs:
+                with gr.Tab("Retirement Planning"):
+                    gr.Markdown("# Retirement Planning Assistant")
+                    gr.Markdown("I will help you plan your retirement.")
+                    
+                    # Main chat interface
+                    chatbot = gr.ChatInterface(
+                        fn=process_query,
+                        chatbot=gr.Chatbot(height=600, type="messages"),
+                        textbox=gr.Textbox(placeholder="Ask a question about your documents...", container=False),
+                        title="Retirement Planning Assistant",
+                        examples=[
+                            "What are the main topics covered in the uploaded documents?", 
+                            "Can you summarize the key points from the documents?"
+                        ],
+                        type="messages",
+                    )
+                with gr.Tab("Portfolio Assistant"):
+                    gr.Markdown("# Portfolio Assistant")
+                    gr.Markdown("I will help you with your investment portfolio.")
+                    portfolio_chatbot = gr.ChatInterface(
+                        fn=handle_portfolio_query,
+                        chatbot=gr.Chatbot(height=600, type="messages"),
+                        textbox=gr.Textbox(placeholder="Ask a question about your portfolio...", container=False),
+                        title="Portfolio Assistant",
+                        examples=[
+                            "What is the current value of my portfolio?",
+                            "Should I invest in stocks or bonds?"
+                        ],
+                        type="messages",
+                    )
         
         # Handle file upload and processing
         upload_button.click(
